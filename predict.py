@@ -97,9 +97,12 @@ def main(in_file, out_file, go_file, model_file, terms_file, annotations_file,
         # Combine diamond preds and deepgo
         for prot_id in prot_ids:
             annots = {}
+            diamond_scores = {}  # Retain just the DiamondScore
             if prot_id in diamond_preds:
                 for go_id, score in diamond_preds[prot_id].items():
-                    annots[go_id] = score * alphas[go.get_namespace(go_id)]
+                    d_score = score * alphas[go.get_namespace(go_id)]
+                    annots[go_id] = d_score
+                    diamond_scores[go_id] = score
             for go_id, score in deep_preds[prot_id].items():
                 if go_id in annots:
                     annots[go_id] += (1 - alphas[go.get_namespace(go_id)]) * score
@@ -116,8 +119,13 @@ def main(in_file, out_file, go_file, model_file, terms_file, annotations_file,
                 
             sannots = sorted(annots.items(), key=lambda x: x[1], reverse=True)
             for go_id, score in sannots:
+                diamond_score = diamond_scores.get(go_id)
+                if diamond_score is None:
+                    diamond_score_str = ""
+                else:
+                    diamond_score_str = '%.3f' % diamond_score
                 if score >= threshold:
-                    w.write(prot_id + '\t' + go_id + '\t' + go.get_namespace(go_id) + '\t' + go.get_term(go_id)['name'] + '\t%.2f' % go.get_ic(go_id) + '\t%.3f\n' % score)
+                    w.write(prot_id + '\t' + go_id + '\t' + go.get_namespace(go_id) + '\t' + go.get_term(go_id)['name'] + '\t%.2f' % go.get_ic(go_id) + '\t%.3f' % score + '\t' + diamond_score_str + '\n')
             w.write('\n')
     w.close()
     total_time = time.time() - start_time
